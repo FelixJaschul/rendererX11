@@ -52,6 +52,10 @@ int
 main()
 {
     Display* disp = XOpenDisplay(0);
+    if (!disp) {
+        printf("[ERROR] Could not open X11 display. Make sure you are running in a graphical environment.\n");
+        return 1;
+    }
     Window root =   XDefaultRootWindow(disp);
 
     int def_screen = DefaultScreen(disp);
