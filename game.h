@@ -17,10 +17,11 @@
 #define MAX_POLY_VERTS 10
 #define MAX_TRIANGLES 1028
 
-#define g_fog_active // comment out for deactivation
-#define g_fog_start 10.0f
+#define g_light_active
+#define g_fog_active
+#define g_fog_start 400.0f
 #define g_fog_end 1000.0f
-#define g_fog_color 0xFF000000 // 0xFFffaaee
+#define g_fog_color 0xFF78de99 // 0xFF87de87 // 0xFF000000 // 0xFFffaaee
 
 typedef enum { FLOOR, WALL_X, WALL_Z } RectType;
 
