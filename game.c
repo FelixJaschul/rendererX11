@@ -15,7 +15,9 @@
 
 static inline void 
 do_render(
-        buffer *buf, 
+        buffer *buf,
+        Light light,
+        Level *level,
         Camera cam, 
         float fps) 
 {
@@ -25,55 +27,22 @@ do_render(
             buf->h, 
             buf->w);
 
-    int tile_count_x = 15;
-    int tile_count_z = 15;
-    float tile_size = 100.0f;
-    float floor_y = 100.0f;
+    for (int i = 0; i < buf->w * buf->h; i++) 
+        buf->depth_buffer[i] = 1.0f;
     
-    create_background(oc, 0xFF87de87);
+    create_background(oc);
     create_floor(
             buf, 
             oc, 
-            tile_count_x, 
-            tile_count_z, 
-            tile_size, 
-            floor_y, 
-            cam);
+            15, 
+            15, 
+            100, 
+            100, 
+            light, cam);
     
-    float wall_h = 30.0f;
-    float wall_thick = 0.2f;
-    float zig_offset = 0.5f;
-    float prev_offset = 0.0f;
+    level_render(level, buf, oc, light, cam);
 
-    for (int tx = -1; tx < 5; tx++) 
-    {
-        float z_base = 4 + tx * tile_size;
-        float z_offset = (tx & 1) ? zig_offset : 0.0f;
-        float x0 = tx * tile_size;
-        float x1 = x0 + tile_size;
-
-        float y0 = floor_y - wall_h;
-        float y1 = floor_y;
-
-        Vec3 v0 = { x0, y0, z_base + z_offset };
-        Vec3 v1 = { x1, y0, z_base + z_offset };
-        Vec3 v2 = { x1, y1, z_base + z_offset };
-        Vec3 v3 = { x0, y1, z_base + z_offset };
-        place_rect(buf, oc, v0, v1, v2, v3, 0xFF222222, cam);
-
-        if (prev_offset != z_offset) 
-        {
-            Vec3 s0 = { x0, y0, z_base + prev_offset };
-            Vec3 s1 = { x0, y0, z_base + z_offset };
-            Vec3 s2 = { x0, y1, z_base + z_offset };
-            Vec3 s3 = { x0, y1, z_base + prev_offset };
-            place_rect(buf, oc, s0, s1, s2, s3, 0xFF222222, cam);
-        }
-
-        prev_offset = z_offset;
-    }
- 
-    char text[32];
+    char text[16];
     snprintf(text, sizeof(text), "[FPS] %.1f", fps);
     place_text(oc, text);
 }
@@ -134,9 +103,16 @@ main()
     buffer buf = {};
     buf.w = win_w;
     buf.h = win_h;
+    buf.shadow_w = 256;
+    buf.shadow_h = 256;
     buf.pitch = buf.w * bytes_per_px;
     buf.size  = buf.pitch * buf.h;
     buf.mem   = (uint8_t *)malloc(buf.size);
+    buf.depth_buffer = (float *)malloc(sizeof(float) * buf.w * buf.h);
+    buf.shadow_depth = malloc(sizeof(float) * buf.shadow_w * buf.shadow_h);
+    
+    for (int i = 0; i < buf.shadow_w * buf.shadow_h; i++)
+        buf.shadow_depth[i] = 1e9f;
 
     Camera cam = {};
     cam.distance = 300.0f;
@@ -146,6 +122,13 @@ main()
     cam.pos_y = 0.0f;
     cam.pos_z = 400.0f;
 
+    Light sun = {};
+    sun.position = (Vec3){0, 0, 0};
+    sun.direction = (Vec3){0.3f, 1.0f, 0.3f};
+    sun.color = 0xFFFFFFFF;
+    sun.intensity = 0.2f;
+    sun.is_directional = 1;
+
     KeyState keys = {};
 
     float triangle_angle = 0;
@@ -154,6 +137,13 @@ main()
     int scanline_bytes = 0;
     XImage *img = XCreateImage(disp, vis_info.visual, vis_info.depth, ZPixmap,
             offset, (char *)buf.mem, win_w, win_h, bpp, scanline_bytes);
+
+    Level* level = level_load_from_file("level.txt");
+    if (!level)
+    {
+        printf("[ERROR] Failed to load level, exiting\n"); 
+        return 1;
+    }
 
     uint64_t end = NANO();
 
@@ -218,6 +208,7 @@ main()
                     {
                         XDestroyWindow(disp, win);
                         XCloseDisplay(disp);
+                        level_free(level);
                         is_open = 0;
                     }
                 }
@@ -230,6 +221,9 @@ main()
                     win_h = cfg_ev->height;
 
                     XDestroyImage(img);
+                    free(buf.depth_buffer);
+                    buf.depth_buffer = 
+                        (float *)malloc(sizeof(float) * buf.w * buf.h);
 
                     buf.w = win_w;
                     buf.h = win_h;
@@ -237,12 +231,20 @@ main()
                     buf.size = buf.pitch * buf.h;
                     buf.mem = (uint8_t *)malloc(buf.size);
 
-                    img = XCreateImage(disp, vis_info.visual, vis_info.depth, ZPixmap,
-                            offset, (char *)buf.mem, win_w, win_h, bpp, scanline_bytes);
+                    img = XCreateImage(
+                            disp, 
+                            vis_info.visual, 
+                            vis_info.depth, 
+                            ZPixmap,
+                            offset, 
+                            (char *)buf.mem, 
+                            win_w, win_h, 
+                            bpp, 
+                            scanline_bytes);
                 } break;
             }
         }
-
+        
         uint64_t begin = NANO();
         uint64_t delta = begin - end;
         end = begin;
@@ -258,7 +260,7 @@ main()
 
         update_camera(&cam, &keys, dt);
 
-        do_render(&buf, cam, fps);
+        do_render(&buf, sun, level, cam, fps);
         XPutImage(disp, win, ctx, img, 0, 0, 0, 0, win_w, win_h);
 
         struct timespec ts;

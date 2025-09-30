@@ -17,29 +17,49 @@
 #define MAX_POLY_VERTS 10
 #define MAX_TRIANGLES 1028
 
-#define g_fog_start 20000.0f
+#define g_fog_active // comment out for deactivation
+#define g_fog_start 10.0f
 #define g_fog_end 1000.0f
-#define g_fog_color 0xFFffaaee
+#define g_fog_color 0xFF000000 // 0xFFffaaee
+
+typedef enum { FLOOR, WALL_X, WALL_Z } RectType;
 
 typedef struct
 {
-    float x, y;
-} Vec2;
+    float x;
+    float y;
+} 
+Vec2;
 
 typedef struct
 {
-    float x, y, z;
-} Vec3;
+    float x;
+    float y;
+    float z;
+} 
+Vec3;
 
 typedef struct
 {
     uint8_t *mem;
     float *depth_buffer;
+    float *shadow_depth;
+    int shadow_w;
+    int shadow_h;
     uint32_t w;
     uint32_t h;
     uint64_t size;
     uint32_t pitch;
-} buffer;
+} 
+buffer;
+
+typedef struct 
+{
+    Vec3 tri[3];
+    uint32_t color;
+    float depth;
+} 
+RenderTri;
 
 typedef struct
 {
@@ -51,7 +71,28 @@ typedef struct
     float pos_z;
     float fov;
     float aspect_ratio;
-} Camera;
+} 
+Camera;
+
+typedef struct
+{
+    Vec3 pos;
+    float width;
+    float height;
+    float angle;
+    RectType type;
+    uint32_t color;
+    int flip_culling;
+}
+Wall;
+
+typedef struct
+{
+    Wall* walls;
+    int wall_count;
+    int wall_capacity;
+}
+Level;
 
 typedef struct 
 {
@@ -82,6 +123,16 @@ typedef struct
     float distance;
 }
 Plane;
+
+typedef struct
+{
+    Vec3 position;
+    Vec3 direction;
+    uint32_t color;
+    float intensity;
+    int is_directional;
+}
+Light;
 
 #define NANO() \
     ({ struct timespec ts; \

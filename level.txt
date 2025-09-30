@@ -1,0 +1,22 @@
+# Simple Level Format
+# x y z width height angle type [color] [flip]
+# angle is in radians (0 = no rotation, 1.57 = 90°, 3.14 = 180°)
+# type can be: WALL_X, WALL_Z, or FLOOR
+# color is optional hex value (0xAARRGGBB)
+# flip is optional: 0 = normal side, 1 = flip to show other side
+
+# EXAMPLE
+
+0   -30 0   100 100 0 WALL_X 0xFFFFFFFF 0
+0   -30 0   100 100 0 WALL_Z 0xFFFFFFFF 1
+0   -30 100 100 100 0 WALL_Z 0xFFFFFFFF 0
+100 -30 0   100 100 0 WALL_X 0xFFFFFFFF 1
+
+0    70 0   100 100 0 FLOOR  0xFFFFFFFF 1
+# 0   -30 0   100 100 0 FLOOR  0xFFFFFFFF 0
+0    70 0   100 100 0 FLOOR  0xFFFFFFFF 0
+
+0   -30 0   100 100 0 WALL_X 0xFFFFFFFF 1
+0   -30 0   100 100 0 WALL_Z 0xFFFFFFFF 0
+0   -30 100 100 100 0 WALL_Z 0xFFFFFFFF 1
+100 -30 0   100 100 0 WALL_X 0xFFFFFFFF 0
