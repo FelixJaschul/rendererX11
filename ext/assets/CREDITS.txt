@@ -1,5 +1,0 @@
-- https://opengameart.org/content/handpainted-stone-texture
-  - lavastone-origin.png
-  - lavastone.png
-  - oldstone-origin.png
-  - oldstone.png
