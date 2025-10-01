@@ -13,18 +13,95 @@
 #include "game.h"
 #include "util.h"
 
-static inline void do_editor(
-        buffer *buf,
-        Level *level,
-        Camera cam)
+static inline void do_editor(buffer *buf, Level *level, Camera cam)
 {
-    Olivec_Canvas oc = olivec_canvas(
-            (uint32_t*)buf->mem, 
-            buf->w, 
-            buf->h, 
-            buf->w);
+    Olivec_Canvas oc = olivec_canvas((uint32_t*)buf->mem, buf->w, buf->h, buf->w);
+    create_background(oc, 0xFF0B0B0B);  
 
-    create_background(oc, 0xFF000000);
+    float minx = 1e9f, maxx = -1e9f, minz = 1e9f, maxz = -1e9f;
+    for (int i = 0; i < level->wall_count; ++i) 
+    {
+        Wall *w = &level->walls[i];
+        if (w->type != FLOOR) 
+        {
+            float a = w->angle;
+            float dx = (w->type == WALL_Z) ? w->width : 0.0f;
+            float dz = (w->type == WALL_X) ? w->width : 0.0f;
+            float rx = dx * cosf(a) - dz * sinf(a);
+            float rz = dx * sinf(a) + dz * cosf(a);
+            float x0 = w->pos.x,          z0 = w->pos.z;
+            float x1 = w->pos.x + rx,     z1 = w->pos.z + rz;
+            if (x0 < minx) minx = x0; if (x0 > maxx) maxx = x0;
+            if (z0 < minz) minz = z0; if (z0 > maxz) maxz = z0;
+            if (x1 < minx) minx = x1; if (x1 > maxx) maxx = x1;
+            if (z1 < minz) minz = z1; if (z1 > maxz) maxz = z1;
+        } 
+        else {}
+    } 
+
+    const float margin = 40.0f;
+    float sx = (buf->w - 2.0f*margin) / fmaxf(1e-3f, (maxx - minx));
+    float sy = (buf->h - 2.0f*margin) / fmaxf(1e-3f, (maxz - minz));
+    float scale = fminf(sx, sy);
+    #define SXX(X) (int)(margin + ((X) - minx) * scale)
+    #define SYY(Z) (int)(margin + ((Z) - minz) * scale)
+
+    int mx = -10000, my = -10000;
+    {
+        Display *d = XOpenDisplay(NULL);
+        if (d) 
+        {
+            Window rr, cr;
+            int rx, ry, wx, wy; unsigned int mask;
+            if (XQueryPointer(d, DefaultRootWindow(d), &rr, &cr, &rx, &ry, &wx, &wy, &mask)) {
+                mx = rx; my = ry;
+            }
+            XCloseDisplay(d);
+        }
+    }
+
+
+    const int HR = 3;
+    float best = 1e9f; 
+    int hx0=0, hy0=0, hx1=0, hy1=0;
+
+    for (int i = 0; i < level->wall_count; ++i) 
+    {
+        Wall *w = &level->walls[i];
+
+        if (w->type != FLOOR) 
+        {
+            float a = w->angle;
+            float dx = (w->type == WALL_Z) ? w->width : 0.0f;
+            float dz = (w->type == WALL_X) ? w->width : 0.0f;
+            float rx = dx * cosf(a) - dz * sinf(a);
+            float rz = dx * sinf(a) + dz * cosf(a);
+            int x0 = SXX(w->pos.x);
+            int y0 = SYY(w->pos.z);
+            int x1 = SXX(w->pos.x + rx);
+            int y1 = SYY(w->pos.z + rz);
+
+            olivec_line(oc, x0, y0, x1, y1, 0xFFCC4A4A);
+            olivec_rect(oc, x0 - HR, y0 - HR, 2*HR+1, 2*HR+1, 0xFF3B82F6);
+            olivec_rect(oc, x1 - HR, y1 - HR, 2*HR+1, 2*HR+1, 0xFF3B82F6);
+
+            float vx = (float)(x1 - x0), vy = (float)(y1 - y0);
+            float wxv = (float)(mx - x0), wyv = (float)(my - y0);
+            float vv = vx*vx + vy*vy;
+            float t = vv > 1e-6f ? (vx*wxv + vy*wyv) / vv : 0.0f;
+            if (t < 0.0f) t = 0.0f; else if (t > 1.0f) t = 1.0f;
+            float cx = x0 + t*vx, cy = y0 + t*vy;
+            float dx2 = mx - cx, dy2 = my - cy;
+            float d = sqrtf(dx2*dx2 + dy2*dy2);
+            if (d < best) { best = d; hx0=x0; hy0=y0; hx1=x1; hy1=y1; }
+        }
+        else {}
+    }
+
+    if (best < 50.0f) olivec_line(oc, hx0, hy0, hx1, hy1, 0xFFEAD14B);
+
+    #undef SXX
+    #undef SYY
 }
 
 static inline void do_render(
@@ -56,12 +133,10 @@ static inline void do_render(
             light, cam);
     
     level_render(level, buf, oc, light, cam);
-
-    char text[16];
-    snprintf(text, sizeof(text), "[FPS] %.1f", fps);
+    char text[32];
+    snprintf(text, sizeof(text), "[fps]%.1f", fps);
     place_text(oc, text);
 }
-
 
 int main()
 {
@@ -95,7 +170,8 @@ int main()
     int attr_mask = CWBackPixel | CWEventMask;
     XSetWindowAttributes win_attrs = {};
     win_attrs.event_mask =
-        StructureNotifyMask | KeyPressMask | KeyReleaseMask | ExposureMask;
+        StructureNotifyMask | KeyPressMask | KeyReleaseMask | ExposureMask |
+        ButtonPressMask | ButtonReleaseMask | PointerMotionMask;
 
     Window win = XCreateWindow(disp, root,
             win_x, win_y, win_w, win_h,
@@ -174,6 +250,7 @@ int main()
 
                     if (keysym == XK_Escape) is_open = 0;
                     if (keysym == XK_F1) editor = editor == 1 ? 0 : 1;
+                    // if (keysym == XK_s) level_save_to_file(level, "level.txt");
 
                     if (!editor) {
                         if (keysym == XK_w) keys.w = 1;
@@ -203,23 +280,10 @@ int main()
                         if (keysym == XK_Shift_L) keys.shift = 0;
                         if (keysym == XK_space) keys.space = 0;
 
-                        if (keysym == XK_Up) keys.up = 0;
-                        if (keysym == XK_Down) keys.down = 0;
-                        if (keysym == XK_Left) keys.left = 0;
+                        if (keysym == XK_Up)    keys.up = 0;
+                        if (keysym == XK_Down)  keys.down = 0;
+                        if (keysym == XK_Left)  keys.left = 0;
                         if (keysym == XK_Right) keys.right = 0;
-                    }
-                }
-                break;
-
-                case ClientMessage:
-                {
-                    XClientMessageEvent *msg_ev = (XClientMessageEvent *) &ev;
-                    if ((Atom)msg_ev->data.l[0] == wm_delete)
-                    {
-                        XDestroyWindow(disp, win);
-                        XCloseDisplay(disp);
-                        level_free(level);
-                        is_open = 0;
                     }
                 }
                 break;
@@ -272,6 +336,7 @@ int main()
 
         if (!editor) do_render(&buf, sun, level, cam, fps);
         if ( editor) do_editor(&buf, level, cam);
+
         XPutImage(disp, win, ctx, img, 0, 0, 0, 0, win_w, win_h);
     }
 }
