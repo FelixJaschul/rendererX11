@@ -316,7 +316,7 @@ static inline uint32_t apply_lighting(uint32_t base_color, Vec3 surface_normal, 
     return base_color;
 }
 
-static inline void place_text(Olivec_Canvas oc, char text[32])
+static inline void place_text(Olivec_Canvas oc, char text[2048])
 {
     olivec_text(oc, text, 10, 10, olivec_default_font, 2, 0xFFFFFFFF);
 }
