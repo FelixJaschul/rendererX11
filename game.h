@@ -2,8 +2,8 @@
 #define GAME_H
 
 #include <time.h>
-#include <math.h>
 #include <stdint.h>
+#include <math.h>
 
 #define PI M_PI
 #define TAU (2.0f * M_PI)
@@ -14,11 +14,13 @@
 
 #define Z_NEAR 0.1f
 #define Z_FAR 1000.0f
+
 #define MAX_POLY_VERTS 10
 #define MAX_TRIANGLES 1028
 
 #define g_light_active
 #define g_fog_active
+
 #define g_fog_start 400.0f
 #define g_fog_end 1000.0f
 #define g_fog_color 0xFF78de99 // 0xFF87de87 // 0xFF000000 // 0xFFffaaee
@@ -29,7 +31,7 @@ typedef struct
 {
     float x;
     float y;
-} 
+}
 Vec2;
 
 typedef struct
@@ -37,29 +39,31 @@ typedef struct
     float x;
     float y;
     float z;
-} 
+}
 Vec3;
 
 typedef struct
 {
     uint8_t *mem;
     float *depth_buffer;
+
     float *shadow_depth;
     int shadow_w;
     int shadow_h;
+
     uint32_t w;
     uint32_t h;
     uint64_t size;
     uint32_t pitch;
-} 
+}
 buffer;
 
-typedef struct 
+typedef struct
 {
     Vec3 tri[3];
     uint32_t color;
     float depth;
-} 
+}
 RenderTri;
 
 typedef struct
@@ -72,7 +76,7 @@ typedef struct
     float pos_z;
     float fov;
     float aspect_ratio;
-} 
+}
 Camera;
 
 typedef struct
@@ -95,9 +99,9 @@ typedef struct
 }
 Level;
 
-typedef struct 
+typedef struct
 {
-    Vec3 verts[4]; 
+    Vec3 verts[4];
     uint32_t color;
     float dist;
 }
@@ -136,8 +140,8 @@ typedef struct
 Light;
 
 #define NANO() \
-    ({ struct timespec ts; \
-       clock_gettime(CLOCK_MONOTONIC, &ts); \
-       (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec; })
+({ struct timespec ts; \
+   clock_gettime(CLOCK_MONOTONIC, &ts); \
+   (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec; })
 
 #endif // GAME_H
