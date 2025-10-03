@@ -13,3 +13,8 @@ run:
 clean:
 	rm -rf bin
 	mkdir bin
+
+git:
+	git add . 
+	git commit -a -m "EDITOR" 
+	git push

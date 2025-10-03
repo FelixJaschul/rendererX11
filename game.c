@@ -13,6 +13,7 @@
 #include "game.h"
 #include "util.h"
 #include "editor.h"
+#include "level.h"
 
 static inline void do_editor(buffer *buf, Level *level, Camera cam, EditorState* es, int mouse_x, int mouse_y)
 {
@@ -36,17 +37,31 @@ static inline void do_editor(buffer *buf, Level *level, Camera cam, EditorState*
     }
 
     // Hover highlight
-    if (es->hovered_wall >= 0 && best_px < 50.0f){
+    if (es->hovered_wall >= 0 && best_px < 50.0f)
+    {
         float x0,z0,x1,z1; wall_endpoints(&level->walls[es->hovered_wall],&x0,&z0,&x1,&z1);
         int sx0,sy0,sx1,sy1; map_to_screen(es,x0,z0,&sx0,&sy0); map_to_screen(es,x1,z1,&sx1,&sy1);
         olivec_line(oc, sx0, sy0, sx1, sy1, 0xFFEAD14B);
     }
 
     // NewWall preview
-    if (es->mode == EMode_NewWall && es->started){
+    if (es->mode == EMode_NewWall && es->started)
+    {
         float mxw,mzw; screen_to_map(es, mouse_x, mouse_y, &mxw, &mzw);
+        if (es->snap_active) 
+        { 
+            mxw = snapf(mxw, es->snap_size); 
+            mzw = snapf(mzw, es->snap_size); 
+        }
         int sxs,sys,sxe,sye;
-        map_to_screen(es, es->start_x, es->start_z, &sxs, &sys);
+        // map_to_screen(es, es->start_x, es->start_z, &sxs, &sys);
+        float sx = es->start_x, sz = es->start_z;
+        if (es->snap_active) 
+        { 
+            sx = snapf(sx, es->snap_size); 
+            sz = snapf(sz, es->snap_size); 
+        }
+        map_to_screen(es, sx, sz, &sxs, &sys);
         map_to_screen(es, mxw, mzw, &sxe, &sye);
         olivec_line(oc, sxs, sys, sxe, sye, 0xFFFFFFFF);
     }
@@ -176,6 +191,9 @@ int main()
     Level* level = level_load_from_file("level.txt");
 
     EditorState es = {0};
+    es.snap_active = 0;
+    es.snap_size   = 10.0f; 
+    if (es.snap_size < 1e-3f) es.snap_size = 1e-3f;
     editor_fit_level(&es, &buf, level);
 
     uint64_t end = NANO();
@@ -186,7 +204,7 @@ int main()
     int is_open = 1;
     int editor = 0;
     int mouse_x = 0, mouse_y = 0;
-    int dragging_active = 0; // for relative motion tracking in DragWall
+    int dragging_active = 0;
 
     while(is_open)
     {
@@ -206,7 +224,9 @@ int main()
                     XKeyPressedEvent *key_ev = (XKeyPressedEvent *)&ev;
                     KeySym keysym = XLookupKeysym(key_ev, 0);
                     if (keysym == XK_F1) editor = editor ? 0 : 1;
-                    if (!editor) {
+                    if (keysym == XK_Escape) is_open = 0;
+                    if (!editor) 
+                    {
                         if (keysym == XK_w) keys.w = 1;
                         if (keysym == XK_a) keys.a = 1;
                         if (keysym == XK_s) keys.s = 1;
@@ -217,15 +237,18 @@ int main()
                         if (keysym == XK_Down) keys.down = 1;
                         if (keysym == XK_Left) keys.left = 1;
                         if (keysym == XK_Right) keys.right = 1;
-                    } else {
-                        float pan_step = 200.0f / es.scale;
+                    } else 
+                    {
+                        float pan_step = 10.0f / es.scale;
                         if (keysym == XK_Up)    es.pan_z -= pan_step;
                         if (keysym == XK_Down)  es.pan_z += pan_step;
                         if (keysym == XK_Left)  es.pan_x -= pan_step;
                         if (keysym == XK_Right) es.pan_x += pan_step;
-                        if (keysym == XK_o) es.scale = fminf(es.scale * 1.5f, 4096.0f);
-                        if (keysym == XK_p)  es.scale = fmaxf(es.scale / 1.5f, 0.01f);
-                        if (keysym == XK_w) { es.mode = EMode_NewWall; es.started = 0; }
+                        if (keysym == XK_q)     es.snap_active = 1;
+                        if (keysym == XK_o)     es.scale = fminf(es.scale * 1.1f, 4096.0f);
+                        if (keysym == XK_p)     es.scale = fmaxf(es.scale / 1.1f, 0.01f);
+                        if (keysym == XK_w) {   es.mode = EMode_NewWall; es.started = 0; }
+                        if (keysym == XK_s)     level_save_to_file(level, "level.txt");
                         if (keysym == XK_Escape) 
                         { 
                             es.mode = EMode_Default; 
@@ -237,7 +260,8 @@ int main()
 
                         // Find target wall: prefer drag wall, else hovered wall
                         int target = (es.drag_wall >= 0) ? es.drag_wall : es.hovered_wall;
-                        if (target >= 0) {
+                        if (target >= 0) 
+                        {
                             unsigned int mods = ((XKeyPressedEvent*)key_ev)->state;
                             int shift_down = (mods & ShiftMask) != 0;
                             Wall* w = &level->walls[target];
@@ -247,14 +271,15 @@ int main()
         
                             // Height adjust: PgUp/PgDn or +/- keys
                             float h_step = 4.0f;
-                            if (!shift_down) {
+                            if (!shift_down) 
+                            {
                                 if (keysym == XK_plus || 
-                                    keysym == XK_KP_Add || 
+                                    keysym == XK_KP_Add) 
                                 {
                                     w->height = fminf(w->height + h_step, 10000.0f);
                                 }
                                 if (keysym == XK_minus || 
-                                    keysym == XK_KP_Subtract || 
+                                    keysym == XK_KP_Subtract)
                                 {
                                     w->height = fmaxf(w->height - h_step, 0.1f);
                                 }
@@ -262,7 +287,8 @@ int main()
                             // Shift-modified +/-: move wall vertically (Y)
                             // Detect Shift from the key event state; f
                             // or other paths, consider tracking modifiers explicitly 
-                            if (shift_down) {
+                            if (shift_down) 
+                            {
                                 if (keysym == XK_plus || 
                                     keysym == XK_KP_Add) 
                                 {
@@ -293,6 +319,10 @@ int main()
                         if (keysym == XK_Down) keys.down = 0;
                         if (keysym == XK_Left) keys.left = 0;
                         if (keysym == XK_Right) keys.right = 0;
+                    }
+                    if (editor) 
+                    {
+                        if (keysym == XK_q) es.snap_active = 0;
                     }
                 } break;
 
@@ -343,6 +373,14 @@ int main()
                             screen_to_map(&es, last_x,last_y,&wx0,&wz0);
                             screen_to_map(&es, mouse_x,mouse_y,&wxn,&wzn);
                             float dx=wxn-wx0, dz=wzn-wz0;
+                            if (es.snap_active) 
+                            {
+                                // snap the destination by snapping origin+delta and re-diffing
+                                float sx = snapf(level->walls[es.drag_wall].pos.x + dx, es.snap_size);
+                                float sz = snapf(level->walls[es.drag_wall].pos.z + dz, es.snap_size);
+                                dx = sx - level->walls[es.drag_wall].pos.x;
+                                dz = sz - level->walls[es.drag_wall].pos.z;
+                            }
                             level->walls[es.drag_wall].pos.x += dx;
                             level->walls[es.drag_wall].pos.z += dz;
                             last_x = mouse_x; last_y = mouse_y;
@@ -352,6 +390,11 @@ int main()
                     {
                         float x0,z0,x1,z1; wall_endpoints(&level->walls[es.drag_wall],&x0,&z0,&x1,&z1);
                         float wx,wz; screen_to_map(&es, mouse_x, mouse_y, &wx, &wz);
+                        if (es.snap_active) 
+                        { 
+                            wx = snapf(wx, es.snap_size); 
+                            wz = snapf(wz, es.snap_size); 
+                        }
                         if (es.drag_endpoint==0)
                         { 
                             x0=wx; 
@@ -380,6 +423,11 @@ int main()
                         if (es.mode == EMode_NewWall)
                         {
                             float wx,wz; screen_to_map(&es, mouse_x,mouse_y,&wx,&wz);
+                            if (es.snap_active) 
+                            { 
+                                wx = snapf(wx, es.snap_size); 
+                                wz = snapf(wz, es.snap_size); 
+                            }
                             if (!es.started)
                             { 
                                 es.start_x=wx; 
@@ -388,7 +436,13 @@ int main()
                             }
                             else 
                             {
-                                Wall nw; endpoints_to_wall(es.start_x,es.start_z, wx,wz, 40.0f, 0xFFCC4A4A, &nw);
+                                float sx = es.start_x, sz = es.start_z;
+                                if (es.snap_active) 
+                                { 
+                                    sx = snapf(sx, es.snap_size); 
+                                    sz = snapf(sz, es.snap_size); 
+                                }
+                                Wall nw; endpoints_to_wall(sx,sz, wx,wz, 40.0f, 0xFFCC4A4A, &nw);
                                 level_add_wall(level, nw);
                                 es.started=0; es.mode=EMode_Default;
                             }

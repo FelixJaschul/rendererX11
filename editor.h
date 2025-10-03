@@ -28,7 +28,7 @@ typedef struct {
 
 static inline float snapf(float v, float step)
 {
-    return step > 1e6f ? roundf(v/step)*step : v;
+    return (step > 1e-6f) ? roundf(v / step) * step : v;
 }
 
 static inline void wall_endpoints(const Wall* w, float* x0,float* z0,float* x1,float* z1)
