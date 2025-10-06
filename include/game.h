@@ -4,6 +4,8 @@
 #include <time.h>
 #include <stdint.h>
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #define PI M_PI
 #define TAU (2.0f * M_PI)

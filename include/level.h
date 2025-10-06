@@ -2,6 +2,7 @@
 #define LEVEL_H
 
 #include "util.h"
+#include "triangle.h"
 #include "game.h"
 
 static inline Level* level_create(int initial_capacity)

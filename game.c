@@ -8,12 +8,13 @@
 #include <string.h>
 
 #define OLIVE_IMPLEMENTATION
-#include "../ext/olive.c"
+#include "include/ext/olive.c"
 
-#include "game.h"
-#include "util.h"
-#include "editor.h"
-#include "level.h"
+#include "include/game.h"
+#include "include/util.h"
+#include "include/editor.h"
+#include "include/level.h"
+#include "include/math.h"
 
 static inline void do_editor(buffer *buf, Level *level, Camera cam, EditorState* es, int mouse_x, int mouse_y)
 {
