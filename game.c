@@ -494,8 +494,8 @@ int main()
                         }
                     }
                 } break;
-            } // switch
-        } // while pending
+            }
+        }
 
         uint64_t begin = NANO();
         uint64_t delta = begin - end;
