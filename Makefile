@@ -15,6 +15,8 @@ clean:
 	mkdir bin
 
 git:
+	rm -rf bin
 	git add . 
 	git commit -a -m "EDITOR" 
 	git push
+	mkdir bin
