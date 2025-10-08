@@ -17,6 +17,6 @@ clean:
 git:
 	rm -rf bin
 	git add . 
-	git commit -a -m "EDITOR" 
+	git commit -a -m "AUTO COMMIT" 
 	git push
 	mkdir bin
