@@ -2,6 +2,10 @@
 - p1: https://www.youtube.com/watch?v=EnAA7q7b5JE
 - p2: https://www.youtube.com/watch?v=uRRNLWO5qmM&t=27s
 
+#### THIS IS IT:
+
+![Alt text](./GAME.png)
+
 #### TL:DR
 just run it with make all and clean it with make clean (this should be obv lil bro)
 - obv only runs on LINUX (tested) or WSL (tested) and on MACOS (my setup) if XQuartz is installed (because X11 ??)
