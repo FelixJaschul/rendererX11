@@ -15,7 +15,7 @@ clean:
 	mkdir bin
 
 git:
-	rm -rf bin
+	rm -rf bin .idea
 	git add . 
 	git commit -a -m "AUTO COMMIT" 
 	git push
